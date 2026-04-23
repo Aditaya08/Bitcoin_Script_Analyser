@@ -10,7 +10,8 @@ ScriptScope lets you paste any Bitcoin transaction ID, dissect its inputs and ou
 
 - **Transaction Analysis** — Fetch and decode any Bitcoin transaction by TXID via [Blockstream API](https://blockstream.info)
 - **Script Classification** — Auto-detect P2PKH, P2SH, P2WPKH, P2WSH, P2TR (Taproot), P2MS, OP_RETURN
-- **Interactive Stack Debugger** — Step through opcodes one-by-one, watch the stack evolve, see verification results
+- **Full Opcode Debugger** — 50+ opcodes with flow control (`OP_IF`/`OP_ELSE`), arithmetic, stack manipulation, crypto hashing, and locktime support
+- **Real Signature Verification** — Optional `OP_CHECKSIG` verification using the raw transaction hex and `tiny-secp256k1`
 - **Taproot Inspector** — Decode Schnorr signatures, key paths, script paths, and control blocks
 - **OP_RETURN Decoder** — Detect Ordinals/Runes and OMNI protocols in data outputs
 - **X-Ray UI** — Deep-black canvas with animated Digital Loom threads, glassmorphic panels, JetBrains Mono typography
@@ -112,9 +113,19 @@ All endpoints are served from the backend on port `4000`. The Vite dev server pr
 {
   "scriptSig": "483045022100...",
   "scriptPubKey": "76a914...",
-  "witness": ["3044...", "0279..."]
+  "witness": ["3044...", "0279..."],
+  "rawTxHex": "0200000001...",
+  "inputIndex": 0
 }
 ```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `scriptSig` | ✅ | ScriptSig hex |
+| `scriptPubKey` | ✅ | ScriptPubKey hex of the output being spent |
+| `witness` | Optional | Array of witness hex items |
+| `rawTxHex` | Optional | Full raw transaction hex — enables real `OP_CHECKSIG` verification |
+| `inputIndex` | Optional | Index of the input being debugged (required with `rawTxHex`) |
 
 **Response:** Array of `DebugStep` objects with `opcode`, `stackBefore`, `stackAfter`, and `error` fields.
 
@@ -128,7 +139,7 @@ packages/api/src/
 ├── routes.ts          ← API route handlers
 ├── fetcher.ts         ← Blockstream API client
 ├── classifier.ts      ← Script type detection engine
-├── debugger.ts        ← Opcode execution simulator
+├── debugger.ts        ← Full opcode execution engine (50+ opcodes)
 ├── taproot.ts         ← Taproot-specific analysis
 └── types.ts           ← Shared TypeScript interfaces
 
@@ -200,12 +211,31 @@ The UI follows a **"Cryptographic Brutalist"** aesthetic:
 
 ---
 
+## Supported Opcodes
+
+The debugger engine supports **50+ opcodes** across all major categories:
+
+| Category | Opcodes |
+|----------|---------|
+| **Constants** | `OP_0` – `OP_16`, `OP_1NEGATE` |
+| **Flow Control** | `OP_IF`, `OP_NOTIF`, `OP_ELSE`, `OP_ENDIF`, `OP_VERIFY`, `OP_RETURN` |
+| **Stack** | `OP_DUP`, `OP_2DUP`, `OP_3DUP`, `OP_DROP`, `OP_2DROP`, `OP_SWAP`, `OP_2SWAP`, `OP_ROT`, `OP_2ROT`, `OP_OVER`, `OP_2OVER`, `OP_NIP`, `OP_TUCK`, `OP_PICK`, `OP_ROLL`, `OP_IFDUP`, `OP_DEPTH`, `OP_SIZE`, `OP_TOALTSTACK`, `OP_FROMALTSTACK` |
+| **Arithmetic** | `OP_ADD`, `OP_SUB`, `OP_1ADD`, `OP_1SUB`, `OP_NEGATE`, `OP_ABS`, `OP_NOT`, `OP_0NOTEQUAL`, `OP_NUMEQUAL`, `OP_NUMEQUALVERIFY`, `OP_NUMNOTEQUAL`, `OP_LESSTHAN`, `OP_GREATERTHAN`, `OP_LESSTHANOREQUAL`, `OP_GREATERTHANOREQUAL`, `OP_MIN`, `OP_MAX`, `OP_WITHIN`, `OP_BOOLAND`, `OP_BOOLOR` |
+| **Crypto** | `OP_SHA256`, `OP_SHA1`, `OP_RIPEMD160`, `OP_HASH160`, `OP_HASH256` |
+| **Signature** | `OP_CHECKSIG`\*, `OP_CHECKSIGVERIFY`\*, `OP_CHECKMULTISIG`, `OP_CHECKMULTISIGVERIFY` |
+| **Equality** | `OP_EQUAL`, `OP_EQUALVERIFY` |
+| **Locktime** | `OP_CHECKLOCKTIMEVERIFY`, `OP_CHECKSEQUENCEVERIFY` |
+
+\* Real ECDSA verification when `rawTxHex` and `inputIndex` are provided; otherwise returns `CHECKSIG_SKIPPED`.
+
+---
+
 ## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
 | IDE shows stale type errors | `Ctrl+Shift+P` → "TypeScript: Restart TS Server" |
-| Port already in use | Vite auto-increments; check terminal for actual port |
+| Port already in use | Kill stale process: `kill $(lsof -ti:4000)` |
 | API connection refused | Ensure `packages/api` is running on port 4000 |
 | Canvas threads not visible | Hard refresh (`Ctrl+Shift+R`) |
 
