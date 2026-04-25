@@ -1,83 +1,10 @@
 import { Buffer } from 'buffer';
-import { crypto, opcodes as OPS, script, Transaction } from 'bitcoinjs-lib';
-import { DebugStep } from './types';
-
-const OPCODE_NAMES: Record<number, string> = Object.entries(OPS).reduce(
-    (acc, [name, value]) => { acc[value as number] = name; return acc; },
-    {} as Record<number, string>
-);
-
-function opcodeName(opcode: number): string {
-    return OPCODE_NAMES[opcode] ?? `OP_UNKNOWN_${opcode}`;
-}
-
-// --- Script number encoding (BIP 62 compliant) ---
-
-function decodeScriptNumber(buf: Buffer, maxLen = 4): number {
-    if (buf.length === 0) return 0;
-    if (buf.length > maxLen) throw new Error('Script number overflow');
-    let result = 0;
-    for (let i = 0; i < buf.length; i++) result |= buf[i] << (8 * i);
-    if (buf[buf.length - 1] & 0x80) {
-        return -(result & ~(0x80 << (8 * (buf.length - 1))));
-    }
-    return result;
-}
-
-function encodeScriptNumber(value: number): Buffer {
-    if (value === 0) return Buffer.alloc(0);
-    const neg = value < 0;
-    let abs = Math.abs(value);
-    const result: number[] = [];
-    while (abs > 0) { result.push(abs & 0xff); abs >>= 8; }
-    if (result[result.length - 1] & 0x80) result.push(neg ? 0x80 : 0x00);
-    else if (neg) result[result.length - 1] |= 0x80;
-    return Buffer.from(result);
-}
-
-function stackToHex(stack: Buffer[]): string[] {
-    return stack.map(b => b.toString('hex'));
-}
-
-function pop(stack: Buffer[]): Buffer | null {
-    return stack.length > 0 ? stack.pop()! : null;
-}
-
-function popNum(stack: Buffer[]): number | null {
-    const buf = pop(stack);
-    if (!buf) return null;
-    try { return decodeScriptNumber(buf); } catch { return null; }
-}
-
-function peek(stack: Buffer[], offset = 0): Buffer | undefined {
-    return stack[stack.length - 1 - offset];
-}
-
-// --- Sighash helper for real CHECKSIG ---
-
-function tryVerifySig(
-    sig: Buffer, pubkey: Buffer, rawTxHex?: string, inputIndex?: number, prevScriptPubKey?: string
-): boolean | null {
-    if (!rawTxHex || inputIndex === undefined || !prevScriptPubKey) return null;
-    try {
-        const tx = Transaction.fromHex(rawTxHex);
-        const hashType = sig[sig.length - 1];
-        const sigDER = sig.slice(0, -1);
-        const spk = Buffer.from(prevScriptPubKey, 'hex');
-
-        // Legacy sighash
-        const hash = tx.hashForSignature(inputIndex, spk, hashType);
-
-        // Try to verify with secp256k1
-        let ecc: any;
-        try { ecc = require('tiny-secp256k1'); } catch { return null; }
-        return ecc.verify(hash, pubkey, sigDER);
-    } catch {
-        return null; // Can't compute — fall back to skipped
-    }
-}
-
-// --- Main debugger ---
+import { crypto, opcodes as OPS, script } from 'bitcoinjs-lib';
+import { DebugStep } from '../types';
+import { opcodeName } from '../utils/script-utils';
+import { decodeScriptNumber, encodeScriptNumber } from './script-number';
+import { stackToHex, pop, popNum, peek } from './stack-utils';
+import { tryVerifySig } from './crypto-verifier';
 
 export function debugScriptExecution(params: {
     scriptSig: string;

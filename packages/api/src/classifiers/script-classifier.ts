@@ -1,18 +1,8 @@
-import { opcodes as OPS, script } from 'bitcoinjs-lib';
 import { Buffer } from 'buffer';
-import {
-    ScriptClassification,
-    ScriptType,
-    WitnessType,
-} from './types';
-
-const OPCODE_NAMES: Record<number, string> = Object.entries(OPS).reduce(
-    (acc, [name, value]) => {
-        acc[value as number] = name;
-        return acc;
-    },
-    {} as Record<number, string>
-);
+import { opcodes as OPS, script } from 'bitcoinjs-lib';
+import { ScriptClassification } from '../types';
+import { asBuffer, isPubkey, safeUtf8Decode } from '../utils/crypto-utils';
+import { isSmallIntegerOpcode, decodeSmallIntegerOpcode, scriptToAsm } from '../utils/script-utils';
 
 const NONSTANDARD_CLASSIFICATION: ScriptClassification = {
     scriptType: 'NONSTANDARD',
@@ -23,71 +13,6 @@ const NONSTANDARD_CLASSIFICATION: ScriptClassification = {
     opReturnDecoded: null,
     opReturnProtocol: null,
 };
-
-function asBuffer(value: Buffer | string): Buffer {
-    if (Buffer.isBuffer(value)) {
-        return value;
-    }
-
-    return Buffer.from(value, 'hex');
-}
-
-function isPubkey(data: Buffer): boolean {
-    return data.length === 33 || data.length === 65;
-}
-
-function isSmallIntegerOpcode(opcode: number): boolean {
-    return opcode >= OPS.OP_0 && opcode <= OPS.OP_16;
-}
-
-function decodeSmallIntegerOpcode(opcode: number): number {
-    if (opcode === OPS.OP_0) {
-        return 0;
-    }
-
-    return opcode - (OPS.OP_1 - 1);
-}
-
-function opcodeName(opcode: number): string {
-    return OPCODE_NAMES[opcode] ?? `OP_${opcode}`;
-}
-
-function safeUtf8Decode(data: Buffer): string | null {
-    if (data.length === 0) {
-        return '';
-    }
-
-    const text = data.toString('utf8');
-    const normalized = Buffer.from(text, 'utf8');
-
-    if (!normalized.equals(data)) {
-        return null;
-    }
-
-    if (!/^[\x09\x0A\x0D\x20-\x7E]+$/.test(text)) {
-        return null;
-    }
-
-    return text;
-}
-
-export function scriptToAsm(scriptBytes: Buffer): string {
-    const chunks = script.decompile(scriptBytes);
-
-    if (!chunks || chunks.length === 0) {
-        return '';
-    }
-
-    return chunks
-        .map((chunk) => {
-            if (Buffer.isBuffer(chunk)) {
-                return chunk.toString('hex');
-            }
-
-            return opcodeName(chunk);
-        })
-        .join(' ');
-}
 
 function classifyMultisig(chunks: Array<number | Buffer>): {
     isMultisig: boolean;
@@ -316,105 +241,5 @@ export function classifyScript(scriptValue: Buffer | string): ScriptClassificati
     return {
         ...NONSTANDARD_CLASSIFICATION,
         asm,
-    };
-}
-
-function isLikelyDerSignature(data: Buffer): boolean {
-    return data.length > 8 && data[0] === 0x30;
-}
-
-function isLikelySchnorrSignature(data: Buffer): boolean {
-    return data.length === 64 || data.length === 65;
-}
-
-function isLikelyControlBlock(data: Buffer): boolean {
-    return data.length >= 33 && (data.length - 33) % 32 === 0;
-}
-
-export function classifyWitness(
-    witnessHex: string[]
-): {
-    witnessType: WitnessType | null;
-    scriptType: ScriptType;
-} {
-    if (witnessHex.length === 0) {
-        return {
-            witnessType: null,
-            scriptType: 'NONSTANDARD',
-        };
-    }
-
-    const witness = witnessHex.map((item) => Buffer.from(item, 'hex'));
-
-    if (witness.length === 1 && isLikelySchnorrSignature(witness[0])) {
-        return {
-            witnessType: 'P2TR_KEY_PATH',
-            scriptType: 'P2TR',
-        };
-    }
-
-    if (witness.length > 1 && isLikelyControlBlock(witness[witness.length - 1])) {
-        return {
-            witnessType: 'P2TR_SCRIPT_PATH',
-            scriptType: 'P2TR',
-        };
-    }
-
-    if (
-        witness.length === 2 &&
-        isLikelyDerSignature(witness[0]) &&
-        isPubkey(witness[1])
-    ) {
-        return {
-            witnessType: 'P2WPKH',
-            scriptType: 'P2WPKH',
-        };
-    }
-
-    const last = witness[witness.length - 1];
-    const leaf = classifyScript(last);
-
-    if (leaf.scriptType !== 'NONSTANDARD') {
-        return {
-            witnessType: 'P2WSH',
-            scriptType: 'P2WSH',
-        };
-    }
-
-    return {
-        witnessType: 'UNKNOWN',
-        scriptType: 'NONSTANDARD',
-    };
-}
-
-export function classifyInputScript(
-    scriptSigHex: string,
-    witnessHex: string[]
-): {
-    scriptType: ScriptType;
-    witnessType: WitnessType | null;
-} {
-    const scriptSigBuffer = Buffer.from(scriptSigHex, 'hex');
-    const scriptSigClassification = classifyScript(scriptSigBuffer);
-
-    if (witnessHex.length === 0) {
-        return {
-            scriptType: scriptSigClassification.scriptType,
-            witnessType: null,
-        };
-    }
-
-    const witnessClassification = classifyWitness(witnessHex);
-
-    if (witnessClassification.scriptType !== 'NONSTANDARD') {
-        return {
-            scriptType: witnessClassification.scriptType,
-            witnessType: witnessClassification.witnessType,
-        };
-    }
-
-    return {
-        scriptType: scriptSigClassification.scriptType,
-        witnessType: witnessClassification.witnessType,
     };
 }
