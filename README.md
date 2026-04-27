@@ -136,11 +136,28 @@ All endpoints are served from the backend on port `4000`. The Vite dev server pr
 ```
 packages/api/src/
 ├── server.ts          ← Express app (port 4000)
-├── routes.ts          ← API route handlers
-├── fetcher.ts         ← Blockstream API client
-├── classifier.ts      ← Script type detection engine
-├── debugger.ts        ← Full opcode execution engine (50+ opcodes)
+├── routes/            ← API route handlers
+│   ├── index.ts
+│   ├── script.ts
+│   └── tx.ts
+├── services/
+│   └── tx-fetcher.ts  ← Blockstream/Mempool API client
+├── classifiers/       ← Script & witness type detection engine
+│   ├── index.ts
+│   ├── input-classifier.ts
+│   ├── script-classifier.ts
+│   └── witness-classifier.ts
+├── debugger/          ← Full opcode execution engine (50+ opcodes)
+│   ├── index.ts
+│   ├── engine.ts
+│   ├── crypto-verifier.ts
+│   ├── script-number.ts
+│   └── stack-utils.ts
 ├── taproot.ts         ← Taproot-specific analysis
+├── utils/             ← Shared utilities
+│   ├── crypto-utils.ts
+│   ├── script-utils.ts
+│   └── validation-utils.ts
 └── types.ts           ← Shared TypeScript interfaces
 
 packages/web/src/

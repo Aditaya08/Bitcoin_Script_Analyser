@@ -10,14 +10,14 @@ import {
     classifyInputScript,
     classifyScript,
     classifyWitness,
-    scriptToAsm,
-} from './classifier';
-import { parseTaprootWitness } from './taproot';
+} from '../classifiers';
+import { scriptToAsm } from '../utils/script-utils';
+import { parseTaprootWitness } from '../taproot';
 import {
     InputAnalysis,
     OutputAnalysis,
     TxAnalysis,
-} from './types';
+} from '../types';
 
 initEccLib(ecc);
 

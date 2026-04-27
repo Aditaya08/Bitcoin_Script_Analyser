@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
-import { classifyScript, scriptToAsm } from './classifier';
+import { classifyScript } from './classifiers/script-classifier';
+import { scriptToAsm } from './utils/script-utils';
 import { TaprootDetail } from './types';
 
 function isSchnorrSignature(data: Buffer): boolean {
