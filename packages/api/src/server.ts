@@ -5,7 +5,14 @@ import { createApiRouter } from './routes';
 export function createApp() {
     const app = express();
 
-    app.use(cors());
+    app.use(
+        cors({
+            origin: [
+                "http://localhost:5173",
+                "https://bitcoin-script-analyser-web.vercel.app/"
+            ]
+        })
+    );
     app.use(express.json({ limit: '1mb' }));
     app.use(createApiRouter());
 
