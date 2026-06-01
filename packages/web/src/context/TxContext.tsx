@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { TxAnalysis, DebugStep } from '../types';
+import { initWasm, debugScript } from '../lib/wasm';
 
 interface TxContextProps {
   txid: string;
@@ -54,16 +55,23 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     setDebugLoading(true);
     setDebugSteps(null);
     try {
-      const res = await fetch(`http://localhost:4000/api/script/debug`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptSig, scriptPubKey, witness })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setDebugSteps(data);
+      await initWasm();
+      const steps = debugScript(scriptSig, scriptPubKey, witness);
+      setDebugSteps(steps);
     } catch (err: any) {
-      console.error(err);
+      console.error('WASM debug failed, falling back to API:', err);
+      try {
+        const res = await fetch(`http://localhost:4000/api/script/debug`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scriptSig, scriptPubKey, witness })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setDebugSteps(data);
+      } catch (fallbackErr: any) {
+        console.error('API fallback also failed:', fallbackErr);
+      }
     } finally {
       setDebugLoading(false);
     }

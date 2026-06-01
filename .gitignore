@@ -41,5 +41,13 @@ packages/web/src/**/*.js
 # Stitch design exports
 stitch-latest*.html
 
+# Rust
+target/
+packages/core/pkg/
+
+# Unignore generated WASM bindings in frontend
+!packages/web/src/wasm/btc-core/
+!packages/web/src/wasm/btc-core/**
+
 # Misc
 convert.js
