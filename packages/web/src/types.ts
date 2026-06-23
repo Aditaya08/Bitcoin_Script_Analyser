@@ -65,13 +65,15 @@ export interface TxAnalysis {
   feerate: number;
   inputs: InputAnalysis[];
   outputs: OutputAnalysis[];
+  rawTxHex?: string;
 }
 
 export interface DebugStep {
   stepIndex: number;
   opcode: string;
+  opcodeHex?: string;
   data: string | null;
   stackBefore: string[];
   stackAfter: string[];
-  error: 'STACK_EMPTY' | 'VERIFY_FAILED' | 'CHECKSIG_SKIPPED' | null;
+  error: 'STACK_EMPTY' | 'VERIFY_FAILED' | 'CHECKSIG_SKIPPED' | 'STACK_SIZE_EXCEEDED' | 'OP_COUNT_EXCEEDED' | null;
 }

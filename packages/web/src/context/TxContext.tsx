@@ -11,11 +11,35 @@ interface TxContextProps {
   fetchTx: (id: string) => Promise<void>;
   
   // Debugger state
-  debugTarget: { inputIndex: number; scriptSig: string; scriptPubKey: string; witness: string[] } | null;
-  setDebugTarget: (target: { inputIndex: number; scriptSig: string; scriptPubKey: string; witness: string[] } | null) => void;
+  debugTarget: {
+    inputIndex: number;
+    scriptSig: string;
+    scriptPubKey: string;
+    witness: string[];
+    rawTxHex?: string;
+    prevoutValue?: number;
+    prevouts?: { scriptPubKey: string; value: number }[];
+  } | null;
+  setDebugTarget: (target: {
+    inputIndex: number;
+    scriptSig: string;
+    scriptPubKey: string;
+    witness: string[];
+    rawTxHex?: string;
+    prevoutValue?: number;
+    prevouts?: { scriptPubKey: string; value: number }[];
+  } | null) => void;
   debugSteps: DebugStep[] | null;
   debugLoading: boolean;
-  fetchDebug: (scriptSig: string, scriptPubKey: string, witness?: string[]) => Promise<void>;
+  fetchDebug: (
+    scriptSig: string,
+    scriptPubKey: string,
+    witness?: string[],
+    rawTxHex?: string,
+    inputIndex?: number,
+    prevoutValue?: number,
+    prevouts?: { scriptPubKey: string; value: number }[]
+  ) => Promise<void>;
 }
 
 const TxContext = createContext<TxContextProps | undefined>(undefined);
@@ -26,7 +50,15 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [debugTarget, setDebugTarget] = useState<{ inputIndex: number; scriptSig: string; scriptPubKey: string; witness: string[] } | null>(null);
+  const [debugTarget, setDebugTarget] = useState<{
+    inputIndex: number;
+    scriptSig: string;
+    scriptPubKey: string;
+    witness: string[];
+    rawTxHex?: string;
+    prevoutValue?: number;
+    prevouts?: { scriptPubKey: string; value: number }[];
+  } | null>(null);
   const [debugSteps, setDebugSteps] = useState<DebugStep[] | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
 
@@ -51,12 +83,28 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchDebug = async (scriptSig: string, scriptPubKey: string, witness: string[] = []) => {
+  const fetchDebug = async (
+    scriptSig: string,
+    scriptPubKey: string,
+    witness: string[] = [],
+    rawTxHex?: string,
+    inputIndex?: number,
+    prevoutValue?: number,
+    prevouts?: { scriptPubKey: string; value: number }[]
+  ) => {
     setDebugLoading(true);
     setDebugSteps(null);
     try {
       await initWasm();
-      const steps = debugScript(scriptSig, scriptPubKey, witness);
+      const steps = debugScript(
+        scriptSig,
+        scriptPubKey,
+        witness,
+        rawTxHex,
+        inputIndex,
+        prevoutValue,
+        prevouts
+      );
       setDebugSteps(steps);
     } catch (err: any) {
       console.error('WASM debug failed, falling back to API:', err);
@@ -64,7 +112,15 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
         const res = await fetch(`http://localhost:4000/api/script/debug`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scriptSig, scriptPubKey, witness })
+          body: JSON.stringify({
+            scriptSig,
+            scriptPubKey,
+            witness,
+            rawTxHex,
+            inputIndex,
+            prevoutValue,
+            prevouts,
+          })
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();

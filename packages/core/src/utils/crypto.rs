@@ -7,6 +7,13 @@ pub fn sha256(data: &[u8]) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
+pub fn sha1(data: &[u8]) -> Vec<u8> {
+    use sha1::{Sha1, Digest as _};
+    let mut hasher = Sha1::new();
+    hasher.update(data);
+    hasher.finalize().to_vec()
+}
+
 pub fn hash256(data: &[u8]) -> Vec<u8> {
     sha256(&sha256(data))
 }

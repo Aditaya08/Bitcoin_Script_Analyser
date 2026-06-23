@@ -71,3 +71,119 @@ pub fn verify_signature(
         true
     }
 }
+
+pub fn try_verify_sig(
+    signature_bytes: &[u8],
+    pubkey_bytes: &[u8],
+    raw_tx_hex: Option<&str>,
+    input_index: Option<usize>,
+    prev_script_pubkey_hex: &str,
+    prevout_value: Option<u64>,
+    prevouts: Option<&[(String, u64)]>,
+    leaf_hash: Option<bitcoin::TapLeafHash>,
+    original_script_pubkey_hex: &str,
+) -> Option<bool> {
+    let raw_tx = raw_tx_hex?;
+    let idx = input_index?;
+
+    let tx_bytes = hex::decode(raw_tx).ok()?;
+    let tx: bitcoin::Transaction = bitcoin::consensus::deserialize(&tx_bytes).ok()?;
+    let prev_script = bitcoin::ScriptBuf::from_bytes(hex::decode(prev_script_pubkey_hex).ok()?);
+    let original_script = bitcoin::ScriptBuf::from_bytes(hex::decode(original_script_pubkey_hex).ok()?);
+
+    let is_p2wpkh = original_script.is_p2wpkh() || {
+        original_script.is_p2sh() && {
+            if let Some(txin) = tx.input.get(idx) {
+                if let Some(Ok(bitcoin::script::Instruction::PushBytes(pb))) = txin.script_sig.instructions().last() {
+                    let redeem = bitcoin::Script::from_bytes(pb.as_bytes());
+                    redeem.is_p2wpkh()
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    };
+
+    let is_p2wsh = original_script.is_p2wsh() || {
+        original_script.is_p2sh() && {
+            if let Some(txin) = tx.input.get(idx) {
+                if let Some(Ok(bitcoin::script::Instruction::PushBytes(pb))) = txin.script_sig.instructions().last() {
+                    let redeem = bitcoin::Script::from_bytes(pb.as_bytes());
+                    redeem.is_p2wsh()
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    };
+
+    let mut cache = bitcoin::sighash::SighashCache::new(&tx);
+    use bitcoin::hashes::Hash;
+
+    let msg_hash_bytes = if prev_script.is_p2tr() {
+        let prevouts_data = prevouts?;
+        let txouts: Vec<bitcoin::TxOut> = prevouts_data.iter().map(|(spk_hex, val)| {
+            let spk = bitcoin::ScriptBuf::from_bytes(hex::decode(spk_hex).unwrap_or_default());
+            bitcoin::TxOut {
+                value: bitcoin::Amount::from_sat(*val),
+                script_pubkey: spk,
+            }
+        }).collect();
+        let prevouts_cache = bitcoin::sighash::Prevouts::All(&txouts);
+
+        let sighash_type = if signature_bytes.len() == 65 {
+            bitcoin::sighash::TapSighashType::from_consensus_u8(*signature_bytes.last()?).ok()?
+        } else {
+            bitcoin::sighash::TapSighashType::Default
+        };
+
+        let hash = if let Some(lh) = leaf_hash {
+            cache.taproot_script_spend_signature_hash(
+                idx,
+                &prevouts_cache,
+                lh,
+                sighash_type,
+            ).ok()?
+        } else {
+            cache.taproot_key_spend_signature_hash(
+                idx,
+                &prevouts_cache,
+                sighash_type,
+            ).ok()?
+        };
+        hash.to_byte_array()
+    } else if is_p2wpkh {
+        let value = bitcoin::Amount::from_sat(prevout_value?);
+        let sighash_type = bitcoin::sighash::EcdsaSighashType::from_consensus(
+            signature_bytes.last().copied().unwrap_or(1) as u32
+        );
+
+        cache.p2wpkh_signature_hash(
+            idx,
+            &prev_script,
+            value,
+            sighash_type,
+        ).ok()?.to_byte_array()
+    } else if is_p2wsh {
+        let value = bitcoin::Amount::from_sat(prevout_value?);
+        let sighash_type = bitcoin::sighash::EcdsaSighashType::from_consensus(
+            signature_bytes.last().copied().unwrap_or(1) as u32
+        );
+
+        cache.p2wsh_signature_hash(
+            idx,
+            &prev_script,
+            value,
+            sighash_type,
+        ).ok()?.to_byte_array()
+    } else {
+        let sighash_type = signature_bytes.last().copied().unwrap_or(1) as u32;
+        cache.legacy_signature_hash(idx, &prev_script, sighash_type).ok()?.to_byte_array()
+    };
+
+    Some(verify_signature(signature_bytes, pubkey_bytes, &msg_hash_bytes))
+}

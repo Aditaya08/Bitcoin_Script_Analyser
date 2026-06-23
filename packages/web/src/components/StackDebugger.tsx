@@ -51,7 +51,15 @@ export function StackDebugger() {
   // Fetch debug data on target change
   useEffect(() => {
     if (debugTarget) {
-      fetchDebug(debugTarget.scriptSig, debugTarget.scriptPubKey, debugTarget.witness);
+      fetchDebug(
+        debugTarget.scriptSig,
+        debugTarget.scriptPubKey,
+        debugTarget.witness,
+        debugTarget.rawTxHex,
+        debugTarget.inputIndex,
+        debugTarget.prevoutValue,
+        debugTarget.prevouts
+      );
       setCurrentStep(0);
       setPlaying(false);
     }

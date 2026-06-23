@@ -71,12 +71,27 @@ pub fn wasm_debug_script(
     script_sig: &str,
     script_pubkey: &str,
     witness_hex: JsValue,
+    raw_tx_hex: Option<String>,
+    input_index: Option<usize>,
+    prevout_value: Option<u64>,
+    prevouts: JsValue,
 ) -> Result<JsValue, JsValue> {
     let witness_vec: Vec<String> = serde_wasm_bindgen::from_value(witness_hex)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    
-    let steps = crate::debugger::engine::debug_script(script_sig, script_pubkey, &witness_vec)
+
+    let prevouts_vec: Option<Vec<(String, u64)>> = serde_wasm_bindgen::from_value(prevouts)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    
+    let steps = crate::debugger::engine::debug_script(
+        script_sig,
+        script_pubkey,
+        &witness_vec,
+        raw_tx_hex.as_deref(),
+        input_index,
+        prevout_value,
+        prevouts_vec,
+    )
+    .map_err(|e| JsValue::from_str(&e.to_string()))?;
         
     serde_wasm_bindgen::to_value(&steps)
         .map_err(|e| JsValue::from_str(&e.to_string()))

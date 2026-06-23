@@ -20,9 +20,21 @@ export function classifyScript(scriptHex: string): any {
 export function debugScript(
   scriptSig: string,
   scriptPubKey: string,
-  witness: string[]
+  witness: string[],
+  rawTxHex?: string,
+  inputIndex?: number,
+  prevoutValue?: number,
+  prevouts?: { scriptPubKey: string; value: number }[]
 ): any {
-  return wasm_debug_script(scriptSig, scriptPubKey, witness);
+  return wasm_debug_script(
+    scriptSig,
+    scriptPubKey,
+    witness,
+    rawTxHex,
+    inputIndex,
+    prevoutValue !== undefined && prevoutValue !== null ? BigInt(prevoutValue) : undefined,
+    prevouts
+  );
 }
 
 export function analyzeTaproot(witness: string[]): any {

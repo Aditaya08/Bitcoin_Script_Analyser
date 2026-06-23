@@ -110,6 +110,7 @@ pub struct TxAnalysis {
     pub feerate: f64,
     pub inputs: Vec<InputAnalysis>,
     pub outputs: Vec<OutputAnalysis>,
+    pub raw_tx_hex: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -219,4 +220,8 @@ pub enum DebugError {
     VerifyFailed,
     #[serde(rename = "CHECKSIG_SKIPPED")]
     ChecksigSkipped,
+    #[serde(rename = "STACK_SIZE_EXCEEDED")]
+    StackSizeExceeded,
+    #[serde(rename = "OP_COUNT_EXCEEDED")]
+    OpCountExceeded,
 }

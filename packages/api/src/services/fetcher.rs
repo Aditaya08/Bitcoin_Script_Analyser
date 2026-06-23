@@ -269,6 +269,7 @@ impl TxFetcher {
             },
             inputs,
             outputs,
+            raw_tx_hex: Some(hex_str),
         })
     }
 }
