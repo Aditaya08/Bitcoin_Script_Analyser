@@ -44,6 +44,8 @@ interface TxContextProps {
 
 const TxContext = createContext<TxContextProps | undefined>(undefined);
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export const TxProvider = ({ children }: { children: ReactNode }) => {
   const [txid, setTxid] = useState('');
   const [analysis, setAnalysis] = useState<TxAnalysis | null>(null);
@@ -69,7 +71,7 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     setDebugTarget(null);
     try {
       // Assuming api runs on port 4000
-      const res = await fetch(`http://localhost:4000/api/tx/${id}`);
+      const res = await fetch(`${API_BASE}/api/tx/${id}`);
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -109,7 +111,7 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     } catch (err: any) {
       console.error('WASM debug failed, falling back to API:', err);
       try {
-        const res = await fetch(`http://localhost:4000/api/script/debug`, {
+        const res = await fetch(`${API_BASE}/api/script/debug`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
