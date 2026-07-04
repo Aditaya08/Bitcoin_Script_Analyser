@@ -34,10 +34,6 @@ coverage/
 *.log
 npm-debug.log*
 
-# Stale compiled JS (source is TypeScript)
-packages/api/src/*.js
-packages/web/src/**/*.js
-
 # Stitch design exports
 stitch-latest*.html
 
@@ -47,10 +43,6 @@ packages/core/pkg/
 
 # Toolchains
 wasi-sdk-24.0-x86_64-linux/
-
-# Unignore generated WASM bindings in frontend
-!packages/web/src/wasm/btc-core/
-!packages/web/src/wasm/btc-core/**
 
 # Misc
 convert.js
