@@ -1,0 +1,15 @@
+{
+  "name": "btc-core",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "btc_core_bg.wasm",
+    "btc_core.js",
+    "btc_core.d.ts"
+  ],
+  "main": "btc_core.js",
+  "types": "btc_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

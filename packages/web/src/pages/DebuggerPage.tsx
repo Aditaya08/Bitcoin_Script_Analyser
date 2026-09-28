@@ -45,7 +45,15 @@ export default function DebuggerPage() {
 
   useEffect(() => {
     if (!debugTarget) { navigate('/'); return; }
-    fetchDebug(debugTarget.scriptSig, debugTarget.scriptPubKey, debugTarget.witness);
+    fetchDebug(
+      debugTarget.scriptSig,
+      debugTarget.scriptPubKey,
+      debugTarget.witness,
+      debugTarget.rawTxHex,
+      debugTarget.inputIndex,
+      debugTarget.prevoutValue,
+      debugTarget.prevouts
+    );
     setCurrentStep(0);
   }, [debugTarget]);
 

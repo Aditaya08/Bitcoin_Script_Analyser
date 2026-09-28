@@ -31,7 +31,21 @@ export function ScriptPanel() {
                 </div>
                 {input.prevoutScriptPubKeyHex && (
                   <button 
-                    onClick={() => setDebugTarget({ inputIndex: i, scriptSig: input.scriptSigHex, scriptPubKey: input.prevoutScriptPubKeyHex!, witness: input.witness })}
+                    onClick={() => {
+                      const prevouts = analysis.inputs.map(inp => ({
+                        scriptPubKey: inp.prevoutScriptPubKeyHex || '',
+                        value: inp.prevoutValueSats || 0,
+                      }));
+                      setDebugTarget({
+                        inputIndex: i,
+                        scriptSig: input.scriptSigHex,
+                        scriptPubKey: input.prevoutScriptPubKeyHex!,
+                        witness: input.witness,
+                        rawTxHex: analysis.rawTxHex || undefined,
+                        prevoutValue: input.prevoutValueSats || undefined,
+                        prevouts,
+                      });
+                    }}
                     className="text-[11px] border border-white/20 px-2 py-1 hover:bg-white/10 transition-colors"
                   >
                     Debug →
