@@ -1,6 +1,9 @@
 # Build stage
 FROM rust:1.87-slim AS builder
 
+# Install build dependencies for openssl-sys
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
 # Copy the entire workspace
