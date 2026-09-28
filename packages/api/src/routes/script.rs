@@ -15,7 +15,7 @@ pub struct PrevoutInput {
 #[serde(rename_all = "camelCase")]
 pub struct DebugRequest {
     pub script_sig: String,
-    pub script_pubkey: String,
+    pub script_pub_key: String,
     pub witness: Option<Vec<String>>,
     pub raw_tx_hex: Option<String>,
     pub input_index: Option<usize>,
@@ -34,7 +34,7 @@ pub async fn debug_script_handler(
     });
     match btc_core::debugger::engine::debug_script(
         &payload.script_sig,
-        &payload.script_pubkey,
+        &payload.script_pub_key,
         &witness,
         payload.raw_tx_hex.as_deref(),
         payload.input_index,

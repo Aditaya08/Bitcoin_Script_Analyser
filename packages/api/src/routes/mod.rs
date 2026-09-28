@@ -8,6 +8,7 @@ use crate::services::fetcher::TxFetcher;
 
 pub mod tx;
 pub mod script;
+pub mod health;
 
 pub fn create_router() -> Router {
     let fetcher = Arc::new(TxFetcher::new());
@@ -20,6 +21,7 @@ pub fn create_router() -> Router {
     Router::new()
         .route("/api/tx/:txid", get(tx::get_tx_handler))
         .route("/api/script/debug", post(script::debug_script_handler))
+        .route("/health", get(health::health_handler))
         .with_state(fetcher)
         .layer(cors)
 }
