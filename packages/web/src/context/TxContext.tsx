@@ -40,6 +40,10 @@ interface TxContextProps {
     prevoutValue?: number,
     prevouts?: { scriptPubKey: string; value: number }[]
   ) => Promise<void>;
+  
+  // Current opcode for interactive OpcodeRef
+  currentOpcode: string | null;
+  setCurrentOpcode: (opcode: string | null) => void;
 }
 
 const TxContext = createContext<TxContextProps | undefined>(undefined);
@@ -63,6 +67,8 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
   } | null>(null);
   const [debugSteps, setDebugSteps] = useState<DebugStep[] | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
+  
+  const [currentOpcode, setCurrentOpcode] = useState<string | null>(null);
 
   const fetchTx = async (id: string) => {
     setLoading(true);
@@ -138,7 +144,8 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
   return (
     <TxContext.Provider value={{
       txid, setTxid, analysis, loading, error, fetchTx,
-      debugTarget, setDebugTarget, debugSteps, debugLoading, fetchDebug
+      debugTarget, setDebugTarget, debugSteps, debugLoading, fetchDebug,
+      currentOpcode, setCurrentOpcode
     }}>
       {children}
     </TxContext.Provider>

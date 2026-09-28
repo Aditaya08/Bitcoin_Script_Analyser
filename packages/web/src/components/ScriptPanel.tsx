@@ -3,6 +3,7 @@ import { useTx } from '../context/TxContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScriptTypeTag } from './ScriptTypeTag';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { WitnessItem } from './WitnessItem';
 
 export function ScriptPanel() {
   const { analysis, setDebugTarget } = useTx();
@@ -56,9 +57,9 @@ export function ScriptPanel() {
               <div className="space-y-2 opacity-80 cursor-pointer" onClick={() => copy(input.prevout)}>
                 <div className="flex"><span className="w-24 opacity-50">prevout:</span><span className="truncate">{input.prevout}</span></div>
                 <div className="flex"><span className="w-24 opacity-50">scriptSig:</span><span className="truncate">{input.scriptSigAsm || '(empty)'}</span></div>
-                {input.witness.map((w, j) => (
-                  <div key={j} className="flex"><span className="w-24 opacity-50">witness[{j}]:</span><span className="truncate">{w.substring(0, 16)}... ({w.length / 2} bytes)</span></div>
-                ))}
+{input.witness.map((w, j) => (
+  <WitnessItem key={j} index={j} hex={w} />
+))}
                 {input.taprootDetail && (
                   <div className="mt-2 pt-2 border-t border-white/10 text-purple-300">
                     {input.taprootDetail.spendType === 'KEY_PATH' && 'Key-path spend · Schnorr sig (64 bytes)'}

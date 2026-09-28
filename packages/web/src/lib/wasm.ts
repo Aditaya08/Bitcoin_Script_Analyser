@@ -26,6 +26,9 @@ export function debugScript(
   prevoutValue?: number,
   prevouts?: { scriptPubKey: string; value: number }[]
 ): any {
+  // Convert prevouts from objects to tuples for Rust WASM: [(scriptPubKey, value), ...]
+  const prevoutsTuples = prevouts?.map(p => [p.scriptPubKey, p.value]);
+  
   return wasm_debug_script(
     scriptSig,
     scriptPubKey,
@@ -33,7 +36,7 @@ export function debugScript(
     rawTxHex,
     inputIndex,
     prevoutValue !== undefined && prevoutValue !== null ? BigInt(prevoutValue) : undefined,
-    prevouts
+    prevoutsTuples
   );
 }
 

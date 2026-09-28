@@ -33,13 +33,128 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string
   other:  { bg: 'rgba(255,255,255,0.05)', text: '#888', border: 'rgba(255,255,255,0.1)' },
 };
 
+/* Error styling helpers */
+function getErrorStyles(error: string): React.CSSProperties {
+  const styles: Record<string, React.CSSProperties> = {
+    CHECKSIG_SKIPPED: {
+      background: 'rgba(251,191,36,0.12)',
+      color: '#fbbf24',
+      border: '1px solid rgba(251,191,36,0.3)',
+    },
+    VERIFY_FAILED: {
+      background: 'rgba(255,75,75,0.15)',
+      color: '#ff6b6b',
+      border: '1px solid rgba(255,75,75,0.4)',
+    },
+    STACK_EMPTY: {
+      background: 'rgba(255,75,75,0.15)',
+      color: '#ff6b6b',
+      border: '1px solid rgba(255,75,75,0.4)',
+    },
+    STACK_SIZE_EXCEEDED: {
+      background: 'rgba(255,182,137,0.15)',
+      color: '#ffb689',
+      border: '1px solid rgba(255,182,137,0.4)',
+    },
+    OP_COUNT_EXCEEDED: {
+      background: 'rgba(255,182,137,0.15)',
+      color: '#ffb689',
+      border: '1px solid rgba(255,182,137,0.4)',
+    },
+  };
+  return styles[error] ?? styles.VERIFY_FAILED;
+}
+
+function getErrorIcon(error: string): React.ReactNode {
+  switch (error) {
+    case 'CHECKSIG_SKIPPED':
+      return <AlertTriangle className="w-2.5 h-2.5" />;
+    case 'VERIFY_FAILED':
+      return <AlertTriangle className="w-2.5 h-2.5" />;
+    case 'STACK_EMPTY':
+      return <AlertTriangle className="w-2.5 h-2.5" />;
+    case 'STACK_SIZE_EXCEEDED':
+      return <Layers className="w-2.5 h-2.5" />;
+    case 'OP_COUNT_EXCEEDED':
+      return <Zap className="w-2.5 h-2.5" />;
+    default:
+      return <AlertTriangle className="w-2.5 h-2.5" />;
+  }
+}
+
+function getErrorLabel(error: string): string {
+  switch (error) {
+    case 'CHECKSIG_SKIPPED':
+      return 'CHECKSIG Skipped (no tx context)';
+    case 'VERIFY_FAILED':
+      return 'Verification Failed';
+    case 'STACK_EMPTY':
+      return 'Stack Empty';
+    case 'STACK_SIZE_EXCEEDED':
+      return 'Stack Size Exceeded';
+    case 'OP_COUNT_EXCEEDED':
+      return 'Op Count Exceeded';
+    default:
+      return error.replace(/_/g, ' ');
+  }
+}
+
+/* Execution result helpers */
+function getResultStyles(passed: boolean, error?: string | null): React.CSSProperties {
+  if (passed) {
+    return { background: 'rgba(74,222,128,0.06)' };
+  }
+  const errorStyles: Record<string, React.CSSProperties> = {
+    CHECKSIG_SKIPPED: { background: 'rgba(251,191,36,0.08)' },
+    VERIFY_FAILED: { background: 'rgba(255,75,75,0.1)' },
+    STACK_EMPTY: { background: 'rgba(255,75,75,0.1)' },
+    STACK_SIZE_EXCEEDED: { background: 'rgba(255,182,137,0.1)' },
+    OP_COUNT_EXCEEDED: { background: 'rgba(255,182,137,0.1)' },
+  };
+  return errorStyles[error ?? ''] ?? { background: 'rgba(255,75,75,0.1)' };
+}
+
+function getResultIcon(error?: string | null): React.ReactNode {
+  switch (error) {
+    case 'CHECKSIG_SKIPPED':
+      return <AlertTriangle className="w-4 h-4 text-[#fbbf24]" />;
+    case 'VERIFY_FAILED':
+      return <AlertTriangle className="w-4 h-4 text-error" />;
+    case 'STACK_EMPTY':
+      return <AlertTriangle className="w-4 h-4 text-error" />;
+    case 'STACK_SIZE_EXCEEDED':
+      return <Layers className="w-4 h-4 text-[#ffb689]" />;
+    case 'OP_COUNT_EXCEEDED':
+      return <Zap className="w-4 h-4 text-[#ffb689]" />;
+    default:
+      return <AlertTriangle className="w-4 h-4 text-error" />;
+  }
+}
+
+function getResultMessage(error?: string | null): string {
+  switch (error) {
+    case 'CHECKSIG_SKIPPED':
+      return 'Signature verification skipped (no transaction context provided)';
+    case 'VERIFY_FAILED':
+      return 'Script verification failed - condition not met';
+    case 'STACK_EMPTY':
+      return 'Stack underflow - opcode required more items than available';
+    case 'STACK_SIZE_EXCEEDED':
+      return 'Stack size limit exceeded (max 1000 items)';
+    case 'OP_COUNT_EXCEEDED':
+      return 'Operation count limit exceeded (max 201 ops)';
+    default:
+      return 'Script execution failed';
+  }
+}
+
 const SPEED_OPTIONS = [0.5, 1, 2, 4];
 
 /* ------------------------------------------------------------------ */
 /* StackDebugger Component                                             */
 /* ------------------------------------------------------------------ */
 export function StackDebugger() {
-  const { debugTarget, setDebugTarget, debugSteps, debugLoading, fetchDebug } = useTx();
+  const { debugTarget, setDebugTarget, debugSteps, debugLoading, fetchDebug, setCurrentOpcode } = useTx();
   const [currentStep, setCurrentStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -104,6 +219,15 @@ export function StackDebugger() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [debugSteps]);
+
+  // Update current opcode in context for interactive OpcodeRef
+  useEffect(() => {
+    if (debugSteps && currentStep < debugSteps.length) {
+      setCurrentOpcode(debugSteps[currentStep].opcode);
+    } else {
+      setCurrentOpcode(null);
+    }
+  }, [currentStep, debugSteps, setCurrentOpcode]);
 
   const stepTo = useCallback((idx: number) => {
     setPlaying(false);
@@ -298,14 +422,10 @@ export function StackDebugger() {
                 {s.error && (
                   <span
                     className="px-1.5 py-0.5 rounded text-[9px] flex items-center gap-1"
-                    style={{
-                      background: s.error === 'CHECKSIG_SKIPPED' ? 'rgba(251,191,36,0.12)' : 'rgba(255,75,75,0.12)',
-                      color: s.error === 'CHECKSIG_SKIPPED' ? '#fbbf24' : '#ff6b6b',
-                      border: `1px solid ${s.error === 'CHECKSIG_SKIPPED' ? 'rgba(251,191,36,0.3)' : 'rgba(255,75,75,0.3)'}`,
-                    }}
+                    style={getErrorStyles(s.error)}
                   >
-                    <AlertTriangle className="w-2.5 h-2.5" />
-                    {s.error.replace(/_/g, ' ')}
+                    {getErrorIcon(s.error)}
+                    {getErrorLabel(s.error)}
                   </span>
                 )}
 
@@ -450,9 +570,7 @@ export function StackDebugger() {
             {isComplete && (
               <div
                 className="px-4 py-3 border-t border-white/5 flex items-center gap-2"
-                style={{
-                  background: scriptPassed ? 'rgba(74,222,128,0.06)' : 'rgba(255,75,75,0.06)',
-                }}
+                style={getResultStyles(scriptPassed, finalStep?.error)}
               >
                 {scriptPassed ? (
                   <>
@@ -464,10 +582,10 @@ export function StackDebugger() {
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="w-4 h-4 text-error" />
+                    {getResultIcon(finalStep?.error)}
                     <div>
                       <p className="font-mono text-[10px] font-bold text-error uppercase tracking-widest">Script Failed</p>
-                      <p className="font-mono text-[9px] text-on-surface-variant">{finalStep?.error?.replace(/_/g, ' ') ?? 'Empty stack'}</p>
+                      <p className="font-mono text-[9px] text-on-surface-variant">{getResultMessage(finalStep?.error)}</p>
                     </div>
                   </>
                 )}

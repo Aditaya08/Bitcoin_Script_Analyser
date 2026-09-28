@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { useTx } from '../context/TxContext';
 
 const commonOpcodes = [
   { hex: '00', name: 'OP_0', category: 'push', effect: 'Pushes an empty array (falsy) to the stack.' },
@@ -40,18 +41,44 @@ const CATEGORY_COLORS: Record<string, string> = {
   verify: '#ffb689',
 };
 
+function getCategory(opcode: string): string {
+  const op = commonOpcodes.find(o => o.name === opcode);
+  return op?.category ?? 'other';
+}
+
 export function OpcodeRef() {
+  const { currentOpcode } = useTx();
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const highlightedRef = useRef<HTMLDivElement>(null);
 
   const categories = ['push', 'stack', 'arith', 'crypto', 'flow', 'verify'];
+
+  // Auto-expand and highlight when currentOpcode changes
+  useEffect(() => {
+    if (currentOpcode) {
+      const cat = getCategory(currentOpcode);
+      setActiveCategory(cat);
+      setIsOpen(true);
+      
+      // Scroll to highlighted opcode after render
+      setTimeout(() => {
+        if (highlightedRef.current) {
+          highlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+  }, [currentOpcode]);
 
   const filtered = commonOpcodes.filter(op => {
     const matchesText = !filter || op.name.toLowerCase().includes(filter.toLowerCase()) || op.effect.toLowerCase().includes(filter.toLowerCase());
     const matchesCat = !activeCategory || op.category === activeCategory;
     return matchesText && matchesCat;
   });
+
+  const isHighlighted = (name: string) => currentOpcode === name;
 
   return (
     <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded flex flex-col h-fit">
@@ -69,7 +96,7 @@ export function OpcodeRef() {
       </div>
       
       {isOpen && (
-        <div className="flex flex-col">
+        <div className="flex flex-col" ref={listRef}>
           {/* Search & Filter Bar */}
           <div className="p-3 border-b border-white/5 flex flex-col gap-2">
             <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded px-2 py-1.5">
@@ -107,34 +134,50 @@ export function OpcodeRef() {
                 No matching opcodes
               </div>
             ) : (
-              filtered.map((op, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 px-4 py-2.5 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.03] transition-colors group"
-                >
-                  {/* Hex badge */}
-                  <span className="font-mono text-[10px] text-on-surface-variant/50 pt-0.5 w-8 flex-shrink-0 tabular-nums">
-                    0x{op.hex}
-                  </span>
-                  {/* Category dot + Name */}
-                  <div className="flex items-center gap-1.5 w-[120px] flex-shrink-0">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: CATEGORY_COLORS[op.category] ?? '#555' }}
-                    />
-                    <span
-                      className="font-mono text-[11px] font-medium group-hover:text-white transition-colors truncate"
-                      style={{ color: CATEGORY_COLORS[op.category] ?? '#aaa' }}
-                    >
-                      {op.name}
+              filtered.map((op, i) => {
+                const highlighted = isHighlighted(op.name);
+                return (
+                  <div
+                    key={i}
+                    ref={highlighted ? highlightedRef : undefined}
+                    className="flex items-start gap-3 px-4 py-2.5 border-b border-white/[0.03] last:border-0 transition-colors group relative"
+                    style={{
+                      background: highlighted ? 'rgba(129,131,255,0.12)' : 'transparent',
+                      borderLeft: highlighted ? '3px solid #c1c1ff' : 'none',
+                    }}
+                  >
+                    {/* Hex badge */}
+                    <span className="font-mono text-[10px] text-on-surface-variant/50 pt-0.5 w-8 flex-shrink-0 tabular-nums">
+                      0x{op.hex}
+                    </span>
+                    {/* Category dot + Name */}
+                    <div className="flex items-center gap-1.5 w-[120px] flex-shrink-0">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: CATEGORY_COLORS[op.category] ?? '#555' }}
+                      />
+                      <span
+                        className="font-mono text-[11px] font-medium group-hover:text-white transition-colors truncate"
+                        style={{ 
+                          color: highlighted ? '#fff' : CATEGORY_COLORS[op.category] ?? '#aaa',
+                          fontWeight: highlighted ? 700 : 500,
+                        }}
+                      >
+                        {op.name}
+                      </span>
+                      {highlighted && (
+                        <span className="text-[8px] px-1 py-0.5 rounded bg-primary text-black font-bold">
+                          CURRENT
+                        </span>
+                      )}
+                    </div>
+                    {/* Effect */}
+                    <span className="font-mono text-[10px] text-on-surface-variant/70 leading-relaxed">
+                      {op.effect}
                     </span>
                   </div>
-                  {/* Effect */}
-                  <span className="font-mono text-[10px] text-on-surface-variant/70 leading-relaxed">
-                    {op.effect}
-                  </span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
